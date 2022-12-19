@@ -1,0 +1,41 @@
+{
+  "name": "brazil_gql_backend",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "git@github.com:ModeUp/brazil_gql_backend.git",
+  "author": "EricLiuCY <ericliu7722@gmail.com>",
+  "license": "MIT",
+  "private": true,
+  "dependencies": {
+    "@apollo/server": "^4.3.0",
+    "dotenv": "^16.0.3",
+    "express": "^4.18.2",
+    "graphql": "^16.6.0",
+    "mongoose": "^6.8.0",
+    "typescript": "^4.9.4"
+  },
+  "devDependencies": {
+    "@graphql-codegen/cli": "^2.16.1",
+    "@graphql-codegen/introspection": "^2.2.3",
+    "@graphql-codegen/typescript": "^2.8.5",
+    "@graphql-codegen/typescript-resolvers": "^2.7.10",
+    "eslint": "^8.30.0",
+    "nodemon": "^2.0.20",
+    "prettier": "2.8.1",
+    "ts-node": "^10.9.1"
+  },
+  "scripts": {
+    "build": "tsc && yarn lint",
+    "lint": "eslint . --ext .ts",
+    "fix": "yarn lint --fix",
+    "pretty": "prettier --config ./.prettierrc.json --write \"./**/*.ts\" && yarn fix",
+    "start:dev": "nodemon src/index.ts",
+    "start:prod": "yarn buildnode dist/src/index.js",
+    "start": "node dist/src/index.js",
+    "test": "mocha 'test/**/**/**/*.spec.ts' --require ts-node/register --timeout 1000000 --exit",
+    "generate": "nodemon test/generator/dataGenerator.script.ts",
+    "yanerate": "nodemon test/generator/yanGen/yanerator.script.ts",
+    "coverage": "nyc yarn test",
+    "codegen": "graphql-codegen --config codegen.yml"
+  }
+}
