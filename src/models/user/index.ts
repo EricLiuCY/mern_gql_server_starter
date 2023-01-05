@@ -1,7 +1,7 @@
 import { model, Model } from 'mongoose';
 import { CreateUserInput, LoginInput } from '../../gql';
 import { Tokens } from '../../services/auth';
-import { UserSchema } from './model';
+import { UserSchema } from './schema';
 import { UserService } from './service';
 import { IUserSchema } from './type';
 
