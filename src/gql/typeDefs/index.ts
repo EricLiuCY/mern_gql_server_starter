@@ -1,6 +1,7 @@
+import { RootTypeDefs } from './root';
+import { UserTypeDefs } from './user';
 
-export const TestDefs = `#graphql
-    type Query {
-        wait: String
-    }
-`;
+export const TestDefs = [
+    RootTypeDefs,
+    UserTypeDefs,
+];

@@ -1,8 +1,6 @@
-import { Resolvers } from "../types";
+import merge from 'lodash.merge';
+import { UserResolvers } from './user';
 
-export const RootResolver : Resolvers = {
-
-    Query: {
-        wait: () => '123'
-    }
-}
+export const RootResolvers = merge(
+    UserResolvers,
+);

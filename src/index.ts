@@ -1,144 +1,86 @@
 import { ApolloServer } from '@apollo/server';
 import { expressMiddleware } from '@apollo/server/express4';
+import { ApolloServerPluginDrainHttpServer } from '@apollo/server/plugin/drainHttpServer';
+import { makeExecutableSchema } from '@graphql-tools/schema';
 import dotenv from 'dotenv';
 import Express from 'express';
 import http from 'http';
+import mongoose from 'mongoose';
+import { formatError } from './errors/formatError';
+import { RootResolvers } from './gql/resolvers';
 import { TestDefs } from './gql/typeDefs';
+import { Auth } from './services/auth';
+import { Logger } from './utils/logger';
 
-// import passportConfig
-dotenv.config();
-
-class Server {
-
-    public app: Express.Application;
-    public DATABASE_URL: string;
-    public DATABASE_PORT: string;
-
-    constructor() {
-
-        // TODO JANKY FIX, return it from helper function
-        this.DATABASE_PORT = '3333';
-        this.DATABASE_URL = 'localhost';
-        // Init Params
-        this.app = Express();
-        // const PORT = process.env.PORT || process.env.LOCALPORT;
-
-        this.configureEnv();
-        // this.configurePassport();
-        this.middlewares();
-        this.connectDB();
-
-    }
-
-    public async startServer() {
-
-        const gqlPort = 8000;
-
-        const httpServer = http.createServer(this.app);
-
-        const apolloServer = new ApolloServer({
-            typeDefs: TestDefs,
-        })
-
-        await apolloServer.start();
-
-        this.app.use(
-            expressMiddleware(apolloServer)
-        )
-
-        await new Promise((resolve) => this.app.listen(gqlPort, () => resolve(null)))
-
-        // Set up apollo server
-        // const apolloServer = new ApolloServer(
-
-        // )
-    }
-
-    private middlewares() {
-
-        // this.app.use(cors({
-        //     origin: '*',
-        // }));
-        this.app.use(Express.json());
-        // this.app.use(passport.initialize());
-        // this.app.use(passport.session());
-
-    }
-
-    private configureEnv() {
-
-        console.log(`Environment Configured to ${process.env.NODE_ENV}`);
-
-        switch (process.env.NODE_ENV) {
-
-            case 'PROD': {
-
-                this.DATABASE_URL = process.env.PROD_DATABASE_URL!;
-                this.DATABASE_PORT = process.env.PROD_DATABASE_PORT!;
-                break;
-
-            }
-            case 'QA': {
-
-                this.DATABASE_URL = process.env.QA_DATABASE_URL!;
-                this.DATABASE_PORT = process.env.QA_DATABASE_PORT!;
-                break;
-
-            }
-            case 'DEV': {
-
-                this.DATABASE_URL = process.env.DEV_DATABASE_URL!;
-                this.DATABASE_PORT = process.env.DEV_DATABASE_PORT!;
-                break;
-
-            }
-            case 'LOCAL': {
-
-                this.DATABASE_URL = process.env.LOCAL_DATABASE_URL!;
-                this.DATABASE_PORT = process.env.LOCAL_DATABASE_PORT!;
-                break;
-
-            }
-            case 'UNIT_TESTING': {
-
-                this.DATABASE_URL = process.env.UNIT_TESTING_DATABASE_URL!;
-                this.DATABASE_PORT = process.env.UNIT_TESTING_DATABASE_PORT!;
-                break;
-
-            }
-            default: {
-
-                this.DATABASE_URL = process.env.DEV_DATABASE_URL!;
-                this.DATABASE_PORT = process.env.DEV_DATABASE_PORT!;
-                break;
-
-            }
-
-        }
-
-    }
-
-    private async connectDB() {
-
-        // try {
-
-        //     mongoose.connect(this.DATABASE_URL, {
-        //         useUnifiedTopology: true,
-        //     });
-        //     this.app.listen(this.DATABASE_PORT);
-        //     console.info(`Mongoose Server running on port: ${this.DATABASE_PORT}`);
-        //     mongoose.set('useFindAndModify', false);
-        //     mongoose.set('returnOriginal', false);
-
-        // } catch (error) {
-
-        //     Log.error(error);
-
-        // }
-
-    }
-
+export interface AppContext {
+    userId?: string;
 }
 
-export const App = new Server();
-App.startServer();
+dotenv.config();
+
+const connectDB = async () => {
+
+    const DBUrl = process.env.mongo_url!;
+
+    try {
+
+        mongoose.connect(DBUrl);
+        Logger.info('\n\nEVENT: Mongoose Server running');
+        mongoose.set('returnOriginal', false);
+
+    } catch (error) {
+
+        Logger.info(error);
+
+    }
+
+};
+
+const startServer = async () => {
+
+    // Set environment varialbles
+    const APP_PORT = 8000;
+
+    // Initialize express application
+    const app = Express();
+    await connectDB();
+
+    // Initialize Express Global middlewares
+    app.use(Express.json());
+
+    // Initialize the http server
+    const httpServer = http.createServer(app);
+
+    // Initialize apollo server
+    const schema = makeExecutableSchema({
+        typeDefs: TestDefs,
+        resolvers: RootResolvers,
+    });
+
+    const apolloServer = new ApolloServer<AppContext>({
+        typeDefs: schema,
+        resolvers: RootResolvers,
+        plugins: [ApolloServerPluginDrainHttpServer({ httpServer })],
+        formatError: formatError,
+    });
+
+    await apolloServer.start();
+
+    // Apply Express Middleware and parse context
+    app.use(
+        expressMiddleware<AppContext>(apolloServer, {
+            context: async ({ req, res }) : Promise<AppContext> => ({
+                userId: Auth.verifyJWT(req.headers.authorization)?.userId,
+            }),
+        }),
+    );
+
+    app.listen(APP_PORT, () => {
+
+        Logger.info('EVENT: Your server is now available\n\n');
+
+    });
+
+};
+
+startServer();
